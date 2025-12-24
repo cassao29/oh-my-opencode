@@ -13,7 +13,7 @@ export { createCompactionContextInjector } from "./compaction-context-injector";
 export { createThinkModeHook } from "./think-mode";
 export { createClaudeCodeHooksHook } from "./claude-code-hooks";
 export { createRulesInjectorHook } from "./rules-injector";
-export { createBackgroundNotificationHook } from "./background-notification"
+export { createBackgroundNotificationHook } from "./background-notification";
 export { createAutoUpdateCheckerHook } from "./auto-update-checker";
 
 export { createAgentUsageReminderHook } from "./agent-usage-reminder";
@@ -21,3 +21,4 @@ export { createKeywordDetectorHook } from "./keyword-detector";
 export { createNonInteractiveEnvHook } from "./non-interactive-env";
 export { createInteractiveBashSessionHook } from "./interactive-bash-session";
 export { createEmptyMessageSanitizerHook } from "./empty-message-sanitizer";
+export { createMemoryAutoSaveHook, type MemoryAutoSaveOptions, type MemoryAutoSaveState } from "./memory-auto-save";

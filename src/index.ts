@@ -23,6 +23,7 @@ import {
   createNonInteractiveEnvHook,
   createInteractiveBashSessionHook,
   createEmptyMessageSanitizerHook,
+  createMemoryAutoSaveHook,
 } from "./hooks";
 import { createGoogleAntigravityAuthPlugin } from "./auth/antigravity";
 import {
@@ -302,6 +303,13 @@ const OhMyOpenCodePlugin: Plugin = async (ctx) => {
   const emptyMessageSanitizer = isHookEnabled("empty-message-sanitizer")
     ? createEmptyMessageSanitizerHook()
     : null;
+  const memoryAutoSave = isHookEnabled("memory-auto-save")
+    ? createMemoryAutoSaveHook(ctx, {
+        enabled: pluginConfig.experimental?.memory_auto_save !== false,
+        probabilityThreshold: pluginConfig.experimental?.memory_auto_save_probability_threshold,
+        cooldownMs: pluginConfig.experimental?.memory_auto_save_cooldown_ms,
+      })
+    : null;
 
   const backgroundManager = new BackgroundManager(ctx);
 
@@ -490,6 +498,7 @@ const OhMyOpenCodePlugin: Plugin = async (ctx) => {
       await thinkMode?.event(input);
       await anthropicAutoCompact?.event(input);
       await preemptiveCompaction?.event(input);
+      await memoryAutoSave?.event(input);
       await agentUsageReminder?.event(input);
       await interactiveBashSession?.event(input);
 

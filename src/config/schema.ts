@@ -63,6 +63,7 @@ export const HookNameSchema = z.enum([
   "non-interactive-env",
   "interactive-bash-session",
   "empty-message-sanitizer",
+  "memory-auto-save",
 ])
 
 export const AgentOverrideConfigSchema = z.object({
@@ -109,12 +110,12 @@ export const SisyphusAgentConfigSchema = z.object({
 export const ExperimentalConfigSchema = z.object({
   aggressive_truncation: z.boolean().optional(),
   auto_resume: z.boolean().optional(),
-  /** Enable preemptive compaction at threshold (default: true) */
   preemptive_compaction: z.boolean().optional(),
-  /** Threshold percentage to trigger preemptive compaction (default: 0.80) */
   preemptive_compaction_threshold: z.number().min(0.5).max(0.95).optional(),
-  /** Truncate all tool outputs, not just whitelisted tools (default: false) */
   truncate_all_tool_outputs: z.boolean().optional(),
+  memory_auto_save: z.boolean().optional(),
+  memory_auto_save_probability_threshold: z.number().min(0.5).max(0.99).optional(),
+  memory_auto_save_cooldown_ms: z.number().min(60000).max(600000).optional(),
 })
 
 export const OhMyOpenCodeConfigSchema = z.object({

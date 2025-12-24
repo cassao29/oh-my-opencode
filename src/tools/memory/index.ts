@@ -10,6 +10,7 @@ export { memory_cleanup } from "./cleanup";
 export { memory_export } from "./export";
 export { memory_related } from "./related";
 export { memory_prune_advice } from "./prune-advice";
+export { memory_context_analytics } from "./context-analytics";
 
 export const memoryTools = {
   memory_remember: () => import("./remember").then(m => m.memory_remember),
@@ -24,4 +25,5 @@ export const memoryTools = {
   memory_export: () => import("./export").then(m => m.memory_export),
   memory_related: () => import("./related").then(m => m.memory_related),
   memory_prune_advice: () => import("./prune-advice").then(m => m.memory_prune_advice),
+  memory_context_analytics: () => import("./context-analytics").then(m => m.memory_context_analytics),
 };

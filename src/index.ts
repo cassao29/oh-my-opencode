@@ -23,6 +23,7 @@ import {
   createNonInteractiveEnvHook,
   createInteractiveBashSessionHook,
   createEmptyMessageSanitizerHook,
+  createMemoryHooks,
 } from "./hooks";
 import { createGoogleAntigravityAuthPlugin } from "./auth/antigravity";
 import {
@@ -303,6 +304,15 @@ const OhMyOpenCodePlugin: Plugin = async (ctx) => {
     ? createEmptyMessageSanitizerHook()
     : null;
 
+  // Memory hooks - enabled by default, can be disabled via config or individual hooks
+  const memoryEnabled = pluginConfig.memory?.enabled !== false;
+  const memoryContextInjectionEnabled = memoryEnabled && isHookEnabled("memory-context-injection");
+  const memoryAutoCaptureEnabled = memoryEnabled && isHookEnabled("memory-auto-capture");
+  const memorySessionTrackingEnabled = memoryEnabled && isHookEnabled("memory-session-tracking");
+  const memoryHooks = (memoryContextInjectionEnabled || memoryAutoCaptureEnabled || memorySessionTrackingEnabled)
+    ? createMemoryHooks(ctx)
+    : null;
+
   const backgroundManager = new BackgroundManager(ctx);
 
   const backgroundNotificationHook = isHookEnabled("background-notification")
@@ -341,6 +351,15 @@ const OhMyOpenCodePlugin: Plugin = async (ctx) => {
     ) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await emptyMessageSanitizer?.["experimental.chat.messages.transform"]?.(input, output as any);
+    },
+
+    "experimental.chat.system.transform": async (
+      input: Record<string, never>,
+      output: { system: string[] }
+    ) => {
+      if (memoryContextInjectionEnabled && memoryHooks) {
+        await memoryHooks["experimental.chat.system.transform"]?.(input, output);
+      }
     },
 
     config: async (config) => {
@@ -505,6 +524,10 @@ const OhMyOpenCodePlugin: Plugin = async (ctx) => {
         }
       }
 
+      if (memorySessionTrackingEnabled && memoryHooks) {
+        await memoryHooks.event(input);
+      }
+
       if (event.type === "session.deleted") {
         const sessionInfo = props?.info as { id?: string } | undefined;
         if (sessionInfo?.id === getMainSessionID()) {
@@ -571,6 +594,10 @@ const OhMyOpenCodePlugin: Plugin = async (ctx) => {
       await emptyTaskResponseDetector?.["tool.execute.after"](input, output);
       await agentUsageReminder?.["tool.execute.after"](input, output);
       await interactiveBashSession?.["tool.execute.after"](input, output);
+
+      if (memoryAutoCaptureEnabled && memoryHooks) {
+        await memoryHooks["tool.execute.after"]?.(input, output);
+      }
     },
   };
 };

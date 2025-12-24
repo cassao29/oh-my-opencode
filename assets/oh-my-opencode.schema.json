@@ -59,7 +59,10 @@
           "agent-usage-reminder",
           "non-interactive-env",
           "interactive-bash-session",
-          "empty-message-sanitizer"
+          "empty-message-sanitizer",
+          "memory-context-injection",
+          "memory-auto-capture",
+          "memory-session-tracking"
         ]
       }
     },
@@ -1233,6 +1236,69 @@
     },
     "auto_update": {
       "type": "boolean"
+    },
+    "memory": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "auto_capture": {
+          "type": "object",
+          "properties": {
+            "tool_use": {
+              "type": "boolean"
+            },
+            "session_summary": {
+              "type": "boolean"
+            }
+          }
+        },
+        "context_injection": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "max_tokens": {
+              "type": "number"
+            },
+            "types": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "decision",
+                  "learning",
+                  "preference",
+                  "blocker",
+                  "context",
+                  "pattern"
+                ]
+              }
+            }
+          }
+        },
+        "storage": {
+          "type": "object",
+          "properties": {
+            "max_memories": {
+              "type": "number"
+            },
+            "max_db_size_mb": {
+              "type": "number"
+            },
+            "cleanup_strategy": {
+              "type": "string",
+              "enum": [
+                "age",
+                "importance",
+                "selective"
+              ]
+            }
+          }
+        }
+      }
     }
   }
 }

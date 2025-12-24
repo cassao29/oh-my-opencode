@@ -21,6 +21,21 @@ import { grep } from "./grep"
 import { glob } from "./glob"
 import { slashcommand } from "./slashcommand"
 
+import {
+  memory_remember,
+  memory_recall,
+  memory_smart_recall,
+  memory_search,
+  memory_update,
+  memory_forget,
+  memory_list,
+  memory_analytics,
+  memory_cleanup,
+  memory_export,
+  memory_related,
+  memory_prune_advice,
+} from "./memory"
+
 export { interactive_bash, startBackgroundCheck as startTmuxCheck } from "./interactive-bash"
 export { getTmuxPath } from "./interactive-bash/utils"
 
@@ -63,4 +78,16 @@ export const builtinTools = {
   grep,
   glob,
   slashcommand,
+  memory_remember,
+  memory_recall,
+  memory_smart_recall,
+  memory_search,
+  memory_update,
+  memory_forget,
+  memory_list,
+  memory_analytics,
+  memory_cleanup,
+  memory_export,
+  memory_related,
+  memory_prune_advice,
 }

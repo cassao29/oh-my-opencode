@@ -21,3 +21,6 @@ export { createKeywordDetectorHook } from "./keyword-detector";
 export { createNonInteractiveEnvHook } from "./non-interactive-env";
 export { createInteractiveBashSessionHook } from "./interactive-bash-session";
 export { createEmptyMessageSanitizerHook } from "./empty-message-sanitizer";
+
+export { createMemoryHooks } from "./memory";
+export type { ToolExecution, PostToolUseOptions } from "./memory";

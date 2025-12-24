@@ -63,6 +63,9 @@ export const HookNameSchema = z.enum([
   "non-interactive-env",
   "interactive-bash-session",
   "empty-message-sanitizer",
+  "memory-context-injection",
+  "memory-auto-capture",
+  "memory-session-tracking",
 ])
 
 export const AgentOverrideConfigSchema = z.object({
@@ -109,12 +112,33 @@ export const SisyphusAgentConfigSchema = z.object({
 export const ExperimentalConfigSchema = z.object({
   aggressive_truncation: z.boolean().optional(),
   auto_resume: z.boolean().optional(),
-  /** Enable preemptive compaction at threshold (default: true) */
   preemptive_compaction: z.boolean().optional(),
-  /** Threshold percentage to trigger preemptive compaction (default: 0.80) */
   preemptive_compaction_threshold: z.number().min(0.5).max(0.95).optional(),
-  /** Truncate all tool outputs, not just whitelisted tools (default: false) */
   truncate_all_tool_outputs: z.boolean().optional(),
+})
+
+export const MemoryAutoCaptureSchema = z.object({
+  tool_use: z.boolean().optional(),
+  session_summary: z.boolean().optional(),
+})
+
+export const MemoryContextInjectionSchema = z.object({
+  enabled: z.boolean().optional(),
+  max_tokens: z.number().optional(),
+  types: z.array(z.enum(["decision", "learning", "preference", "blocker", "context", "pattern"])).optional(),
+})
+
+export const MemoryStorageSchema = z.object({
+  max_memories: z.number().optional(),
+  max_db_size_mb: z.number().optional(),
+  cleanup_strategy: z.enum(["age", "importance", "selective"]).optional(),
+})
+
+export const MemoryConfigSchema = z.object({
+  enabled: z.boolean().optional(),
+  auto_capture: MemoryAutoCaptureSchema.optional(),
+  context_injection: MemoryContextInjectionSchema.optional(),
+  storage: MemoryStorageSchema.optional(),
 })
 
 export const OhMyOpenCodeConfigSchema = z.object({
@@ -128,6 +152,7 @@ export const OhMyOpenCodeConfigSchema = z.object({
   sisyphus_agent: SisyphusAgentConfigSchema.optional(),
   experimental: ExperimentalConfigSchema.optional(),
   auto_update: z.boolean().optional(),
+  memory: MemoryConfigSchema.optional(),
 })
 
 export type OhMyOpenCodeConfig = z.infer<typeof OhMyOpenCodeConfigSchema>
@@ -137,5 +162,6 @@ export type AgentName = z.infer<typeof AgentNameSchema>
 export type HookName = z.infer<typeof HookNameSchema>
 export type SisyphusAgentConfig = z.infer<typeof SisyphusAgentConfigSchema>
 export type ExperimentalConfig = z.infer<typeof ExperimentalConfigSchema>
+export type MemoryConfig = z.infer<typeof MemoryConfigSchema>
 
 export { McpNameSchema, type McpName } from "../mcp/types"

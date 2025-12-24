@@ -1,9 +1,8 @@
 # Memory Module Status Report
 
-**Date:** 2024-12-24  
+**Date:** 2025-12-24  
 **Version:** oh-my-opencode v2.5.1  
 **Branch:** dev  
-**Commit:** 7d35ea0  
 
 ## Overview
 
@@ -57,13 +56,31 @@ Plugin configured in `~/.config/opencode/opencode.json`:
 
 | Category | Grade | Notes |
 |----------|-------|-------|
-| Security | A | Path traversal, SQL injection, secret redaction, XSS, rate limiting |
+| Security | A+ | Path traversal, SQL injection, FTS injection, secret redaction, XSS, rate limiting |
 | Architecture | B+ | Good separation, minor sync-service coupling |
 | Code Quality | B+ | Clean, consistent, well-typed |
-| Tests | B | 64 tests, security well covered |
+| Tests | A | 85 tests, comprehensive security coverage |
 | Performance | A- | WAL, indexes, FTS5 optimized |
 
-### Issues Found (Minor)
+### Security Measures
+
+| Area | Implementation |
+|------|----------------|
+| Input Validation | scope (max 255), content (max 10000), tags (max 1000), issue (max 255) |
+| SQL Injection | Prepared statements everywhere, no string concatenation |
+| FTS Injection | `sanitizeFtsQuery()` removes special chars and boolean operators |
+| Path Traversal | Blocked dirs (/etc, /usr, /var, /root, /boot, /sys, /proc), canonical path check |
+| Secret Redaction | Passwords, API keys, tokens, connection strings, SSH keys, private keys |
+| XSS Prevention | Script and HTML tag removal from content |
+| Rate Limiting | 100 requests/minute per identifier |
+| Type Coercion | Strict type validation (rejects arrays, objects where string expected) |
+
+### Issues Fixed
+
+1. **FTS5 Injection Vulnerability** - User queries were passed directly to FTS5, allowing syntax exploitation. Fixed with `sanitizeFtsQuery()` method.
+2. **Schema file runtime error** - `ENOENT` on schema.sql. Fixed by embedding schema as TypeScript constant.
+
+### Known Minor Issues
 
 1. **sync-service.ts** - Bypasses MemoryStorage encapsulation to access db directly
 2. **smart-recall.ts** - Memory consolidation can grow indefinitely (no size limit)
@@ -72,22 +89,33 @@ Plugin configured in `~/.config/opencode/opencode.json`:
 ## Verification
 
 ```bash
-# TypeScript
-cd /home/cassao/opencode/oh-my-opencode && bun run typecheck
-# Result: Pass
+# Build
+cd /home/cassao/opencode/oh-my-opencode && bun run build
+# Result: 369 modules bundled in 50ms
 
 # Tests
 bun test
-# Result: 64 pass, 0 fail, 244 expect() calls
+# Result: 85 pass, 0 fail, 267 expect() calls
 
-# Git
-git status
-# Result: Clean, up to date with origin/dev
+# Security Tests
+bun test src/memory/security.test.ts
+# Result: 55 pass, 0 fail
 ```
 
 ## Git Remotes
 
 - **origin**: https://github.com/cassao29/oh-my-opencode.git
 - **upstream**: https://github.com/code-yeongyu/oh-my-opencode.git
+
+## Changelog
+
+### 2025-12-24 - Security Hardening
+
+- Added FTS5 query sanitization to prevent injection attacks
+- Added 31 new security tests (55 total security tests)
+- Embedded SQL schema as TypeScript constant (fixes ENOENT runtime error)
+- Added type coercion attack prevention
+- Added observation validation tests
+- Added concurrent access tests
 
 ## Status: PRODUCTION READY

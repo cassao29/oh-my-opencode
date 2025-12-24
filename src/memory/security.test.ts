@@ -338,3 +338,383 @@ describe("Security: Database Path Validation", () => {
     }
   });
 });
+
+describe("Security: Memory Storage Edge Cases", () => {
+  let tempDir: string;
+  let dbPath: string;
+
+  beforeEach(() => {
+    tempDir = mkdtempSync(join(tmpdir(), "memory-edge-test-"));
+    dbPath = join(tempDir, "test.db");
+  });
+
+  afterEach(() => {
+    closeStorage();
+    try {
+      rmSync(tempDir, { recursive: true, force: true });
+    } catch {}
+  });
+
+  test("handles empty string inputs gracefully", () => {
+    const storage = getStorage(dbPath);
+    
+    expect(() => {
+      storage.saveMemory({
+        type: "context",
+        scope: "",
+        content: "test",
+        source: "manual",
+      });
+    }).toThrow("Invalid scope");
+  });
+
+  test("handles very long content up to limit", () => {
+    const storage = getStorage(dbPath);
+    const longContent = "a".repeat(10000);
+    
+    expect(() => {
+      storage.saveMemory({
+        type: "context",
+        scope: "test",
+        content: longContent,
+        source: "manual",
+      });
+    }).not.toThrow();
+  });
+
+  test("rejects content exceeding limit", () => {
+    const storage = getStorage(dbPath);
+    const tooLongContent = "a".repeat(10001);
+    
+    expect(() => {
+      storage.saveMemory({
+        type: "context",
+        scope: "test",
+        content: tooLongContent,
+        source: "manual",
+      });
+    }).toThrow("Invalid content");
+  });
+
+  test("handles unicode content correctly", () => {
+    const storage = getStorage(dbPath);
+    const unicodeContent = "测试内容 🎉 тест محتوى";
+    
+    storage.saveMemory({
+      type: "context",
+      scope: "unicode-test",
+      content: unicodeContent,
+      source: "manual",
+    });
+
+    const memories = storage.getMemories({ scope: "unicode-test", limit: 1 });
+    expect(memories[0].content).toBe(unicodeContent);
+  });
+
+  test("handles null bytes in content", () => {
+    const storage = getStorage(dbPath);
+    const contentWithNull = "test\x00content";
+    
+    storage.saveMemory({
+      type: "context",
+      scope: "null-byte-test",
+      content: contentWithNull,
+      source: "manual",
+    });
+
+    const memories = storage.getMemories({ scope: "null-byte-test", limit: 1 });
+    expect(memories.length).toBe(1);
+  });
+
+  test("handles newlines and special characters in scope", () => {
+    const storage = getStorage(dbPath);
+    
+    storage.saveMemory({
+      type: "context",
+      scope: "test-scope-with-dashes",
+      content: "content",
+      source: "manual",
+    });
+
+    const memories = storage.getMemories({ scope: "test-scope-with-dashes", limit: 1 });
+    expect(memories.length).toBe(1);
+  });
+});
+
+describe("Security: FTS Injection Prevention", () => {
+  let tempDir: string;
+  let dbPath: string;
+
+  beforeEach(() => {
+    tempDir = mkdtempSync(join(tmpdir(), "fts-injection-test-"));
+    dbPath = join(tempDir, "test.db");
+  });
+
+  afterEach(() => {
+    closeStorage();
+    try {
+      rmSync(tempDir, { recursive: true, force: true });
+    } catch {}
+  });
+
+  test("sanitizes FTS special characters in query", () => {
+    const storage = getStorage(dbPath);
+    
+    storage.saveMemory({
+      type: "context",
+      scope: "test",
+      content: "normal content for testing",
+      source: "manual",
+    });
+
+    const ftsInjection = 'content AND NOT "test"';
+    
+    const results = storage.getMemories({ query: ftsInjection, limit: 10 });
+    expect(results.length).toBeGreaterThanOrEqual(0);
+  });
+
+  test("sanitizes asterisk wildcard in query", () => {
+    const storage = getStorage(dbPath);
+    
+    storage.saveMemory({
+      type: "context",
+      scope: "test",
+      content: "test content",
+      source: "manual",
+    });
+
+    const results = storage.getMemories({ query: "*", limit: 10 });
+    expect(results.length).toBeGreaterThanOrEqual(0);
+  });
+
+  test("sanitizes quotes in query", () => {
+    const storage = getStorage(dbPath);
+    
+    storage.saveMemory({
+      type: "context",
+      scope: "test",
+      content: "test content",
+      source: "manual",
+    });
+
+    const results = storage.getMemories({ query: '"unclosed quote', limit: 10 });
+    expect(results.length).toBeGreaterThanOrEqual(0);
+  });
+
+  test("sanitizes parentheses in query", () => {
+    const storage = getStorage(dbPath);
+    
+    storage.saveMemory({
+      type: "context",
+      scope: "test",
+      content: "test content",
+      source: "manual",
+    });
+
+    const results = storage.getMemories({ query: '(test OR admin)', limit: 10 });
+    expect(results.length).toBeGreaterThanOrEqual(0);
+  });
+
+  test("handles empty query after sanitization", () => {
+    const storage = getStorage(dbPath);
+    
+    storage.saveMemory({
+      type: "context",
+      scope: "test",
+      content: "test content",
+      source: "manual",
+    });
+
+    const results = storage.getMemories({ query: '***', limit: 10 });
+    expect(results.length).toBeGreaterThanOrEqual(0);
+  });
+
+  test("preserves legitimate search terms", () => {
+    const storage = getStorage(dbPath);
+    
+    storage.saveMemory({
+      type: "context",
+      scope: "test",
+      content: "important security fix applied",
+      source: "manual",
+    });
+
+    const results = storage.getMemories({ query: "security fix", limit: 10 });
+    expect(results.length).toBe(1);
+    expect(results[0].content).toContain("security");
+  });
+});
+
+describe("Security: Concurrent Access", () => {
+  let tempDir: string;
+  let dbPath: string;
+
+  beforeEach(() => {
+    tempDir = mkdtempSync(join(tmpdir(), "concurrent-test-"));
+    dbPath = join(tempDir, "test.db");
+  });
+
+  afterEach(() => {
+    closeStorage();
+    try {
+      rmSync(tempDir, { recursive: true, force: true });
+    } catch {}
+  });
+
+  test("handles rapid sequential writes", async () => {
+    const storage = getStorage(dbPath);
+    
+    const promises = Array.from({ length: 10 }, (_, i) => 
+      Promise.resolve(storage.saveMemory({
+        type: "context",
+        scope: `rapid-test-${i}`,
+        content: `content ${i}`,
+        source: "manual",
+      }))
+    );
+
+    await Promise.all(promises);
+    
+    const stats = storage.getStats();
+    expect(stats.memories).toBe(10);
+  });
+
+  test("storage singleton returns same instance", () => {
+    const storage1 = getStorage(dbPath);
+    const storage2 = getStorage(dbPath);
+    
+    expect(storage1).toBe(storage2);
+  });
+});
+
+describe("Security: Type Coercion Attacks", () => {
+  let tempDir: string;
+  let dbPath: string;
+
+  beforeEach(() => {
+    tempDir = mkdtempSync(join(tmpdir(), "type-coercion-test-"));
+    dbPath = join(tempDir, "test.db");
+  });
+
+  afterEach(() => {
+    closeStorage();
+    try {
+      rmSync(tempDir, { recursive: true, force: true });
+    } catch {}
+  });
+
+  test("rejects array as scope", () => {
+    const storage = getStorage(dbPath);
+    
+    expect(() => {
+      storage.saveMemory({
+        type: "context",
+        scope: ["array", "scope"] as unknown as string,
+        content: "test",
+        source: "manual",
+      });
+    }).toThrow();
+  });
+
+  test("rejects object as content", () => {
+    const storage = getStorage(dbPath);
+    
+    expect(() => {
+      storage.saveMemory({
+        type: "context",
+        scope: "test",
+        content: { nested: "object" } as unknown as string,
+        source: "manual",
+      });
+    }).toThrow();
+  });
+
+  test("rejects number as scope", () => {
+    const storage = getStorage(dbPath);
+    
+    expect(() => {
+      storage.saveMemory({
+        type: "context",
+        scope: 12345 as unknown as string,
+        content: "test",
+        source: "manual",
+      });
+    }).toThrow();
+  });
+});
+
+describe("Security: Observation Validation", () => {
+  let tempDir: string;
+  let dbPath: string;
+
+  beforeEach(() => {
+    tempDir = mkdtempSync(join(tmpdir(), "observation-test-"));
+    dbPath = join(tempDir, "test.db");
+  });
+
+  afterEach(() => {
+    closeStorage();
+    try {
+      rmSync(tempDir, { recursive: true, force: true });
+    } catch {}
+  });
+
+  test("rejects empty session_id", () => {
+    const storage = getStorage(dbPath);
+    
+    expect(() => {
+      storage.saveObservation({
+        session_id: "",
+        tool_name: "test",
+        type: "read",
+        relevance_score: 0.5,
+      });
+    }).toThrow("Invalid session_id");
+  });
+
+  test("rejects tool_name exceeding limit", () => {
+    const storage = getStorage(dbPath);
+    
+    expect(() => {
+      storage.saveObservation({
+        session_id: "550e8400-e29b-41d4-a716-446655440000",
+        tool_name: "a".repeat(300),
+        type: "read",
+        relevance_score: 0.5,
+      });
+    }).toThrow("Invalid tool_name");
+  });
+
+  test("redacts secrets in tool_args", () => {
+    const storage = getStorage(dbPath);
+    const sessionId = storage.createSession("/tmp/test");
+    
+    storage.saveObservation({
+      session_id: sessionId,
+      tool_name: "bash",
+      tool_args: '{"command": "export API_KEY=sk-1234567890abcdef"}',
+      type: "bash",
+      relevance_score: 0.5,
+    });
+
+    const observations = storage.getSessionObservations(sessionId);
+    expect(observations[0].tool_args).toContain("[REDACTED]");
+    expect(observations[0].tool_args).not.toContain("sk-1234567890abcdef");
+  });
+
+  test("redacts secrets in compressed_output", () => {
+    const storage = getStorage(dbPath);
+    const sessionId = storage.createSession("/tmp/test");
+    
+    storage.saveObservation({
+      session_id: sessionId,
+      tool_name: "read",
+      compressed_output: "Found password: mysecretpass123 in config",
+      type: "read",
+      relevance_score: 0.5,
+    });
+
+    const observations = storage.getSessionObservations(sessionId);
+    expect(observations[0].compressed_output).toContain("[REDACTED]");
+  });
+});

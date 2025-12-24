@@ -1,13 +1,10 @@
 import { Database } from "bun:sqlite";
-import { readFileSync } from "fs";
-import { join, dirname, resolve } from "path";
-import { fileURLToPath } from "url";
+import { resolve } from "path";
 import { randomUUID } from "crypto";
 import { redactSecrets } from "../utils/privacy";
 import { getMemoryDbPath } from "../utils/project";
+import { MEMORY_SCHEMA } from "./schema";
 import type { MemoryType, MemorySource, ObservationType, Memory, Session, Observation } from "../types";
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
 
 export class MemoryStorage {
   private db: Database;
@@ -29,9 +26,7 @@ export class MemoryStorage {
 
   private initSchema(): void {
     try {
-      const schemaPath = join(__dirname, "schema.sql");
-      const schema = readFileSync(schemaPath, "utf-8");
-      this.db.run(schema);
+      this.db.run(MEMORY_SCHEMA);
     } catch (err) {
       throw new Error(`Failed to initialize database schema: ${err instanceof Error ? err.message : 'Unknown error'}`);
     }
@@ -164,6 +159,20 @@ export class MemoryStorage {
     return result.changes;
   }
 
+  private sanitizeFtsQuery(query: string): string {
+    const sanitized = query
+      .replace(/["\*\(\)\[\]\{\}\^\~\:\;\!\@\#\$\%\&\=\+\<\>\,\.\/\?\|\\]/g, ' ')
+      .replace(/\b(AND|OR|NOT|NEAR)\b/gi, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    
+    if (!sanitized || sanitized.length === 0) {
+      return '';
+    }
+    
+    return `"${sanitized}"`;
+  }
+
   getMemories(options: {
     projectPath?: string;
     scope?: string;
@@ -189,15 +198,25 @@ export class MemoryStorage {
 
     let sql: string;
     if (options.query) {
-      sql = `
-        SELECT m.* FROM memories m
-        JOIN memories_fts fts ON m.rowid = fts.rowid
-        WHERE memories_fts MATCH ?
-        ${conditions.length > 0 ? "AND " + conditions.join(" AND ") : ""}
-        ORDER BY m.timestamp DESC
-        LIMIT ?
-      `;
-      params.unshift(options.query);
+      const sanitizedQuery = this.sanitizeFtsQuery(options.query);
+      if (!sanitizedQuery) {
+        sql = `
+          SELECT * FROM memories
+          ${conditions.length > 0 ? "WHERE " + conditions.join(" AND ") : ""}
+          ORDER BY timestamp DESC
+          LIMIT ?
+        `;
+      } else {
+        sql = `
+          SELECT m.* FROM memories m
+          JOIN memories_fts fts ON m.rowid = fts.rowid
+          WHERE memories_fts MATCH ?
+          ${conditions.length > 0 ? "AND " + conditions.join(" AND ") : ""}
+          ORDER BY m.timestamp DESC
+          LIMIT ?
+        `;
+        params.unshift(sanitizedQuery);
+      }
     } else {
       sql = `
         SELECT * FROM memories

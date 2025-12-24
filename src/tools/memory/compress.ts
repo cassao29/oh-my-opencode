@@ -8,6 +8,7 @@ import {
   DEFAULT_COMPRESSION_CONFIG,
   type CompressionConfig,
 } from "../../memory/utils/compression";
+import { validateScope, MAX_SCOPE_LENGTH } from "../../memory/utils/limits";
 
 export const memory_compress = tool({
   description: "Compress and summarize old memories to save space while preserving important information. Merges related memories, removes duplicates, and creates condensed summaries.",
@@ -66,6 +67,10 @@ export const memory_compress = tool({
   },
   async execute(args) {
     try {
+      if (args.scope && !validateScope(args.scope)) {
+        return `Invalid scope: must be ${MAX_SCOPE_LENGTH} chars or less and cannot contain path separators`;
+      }
+
       const storage = getStorage();
       const projectPath = getProjectPath();
 

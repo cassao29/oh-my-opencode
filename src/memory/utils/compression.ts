@@ -1,4 +1,5 @@
 import type { Memory, MemoryType } from "../storage/sqlite";
+import { MAX_CONTENT_LENGTH, MAX_SCOPE_LENGTH, MAX_TAGS_LENGTH } from "./limits";
 
 export interface CompressionConfig {
   timeWindowHours: number;
@@ -174,7 +175,12 @@ function extractKeyPoints(content: string): string[] {
 
 export function summarizeMemories(memories: Memory[]): string {
   if (memories.length === 0) return "";
-  if (memories.length === 1) return memories[0].content;
+  if (memories.length === 1) {
+    const content = memories[0].content;
+    return content.length > MAX_CONTENT_LENGTH 
+      ? content.slice(0, MAX_CONTENT_LENGTH - 3) + "..." 
+      : content;
+  }
 
   const themes: string[][] = [];
   const processed = new Set<string>();
@@ -208,7 +214,10 @@ export function summarizeMemories(memories: Memory[]): string {
   const header = `[Compressed ${memories.length} memories from ${dateRange}]`;
   const summary = uniquePoints.slice(0, 10).map(p => `- ${p}`).join("\n");
 
-  return `${header}\n\n${summary}`;
+  const result = `${header}\n\n${summary}`;
+  return result.length > MAX_CONTENT_LENGTH 
+    ? result.slice(0, MAX_CONTENT_LENGTH - 3) + "..." 
+    : result;
 }
 
 function getDateRange(memories: Memory[]): string {
@@ -234,7 +243,10 @@ function mergeTags(memories: Memory[]): string | undefined {
   }
 
   if (allTags.size === 0) return undefined;
-  return [...allTags].slice(0, 10).join(", ");
+  const merged = [...allTags].slice(0, 10).join(", ");
+  return merged.length > MAX_TAGS_LENGTH 
+    ? merged.slice(0, MAX_TAGS_LENGTH - 3) + "..." 
+    : merged;
 }
 
 export function compressGroup(

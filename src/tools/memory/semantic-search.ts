@@ -8,6 +8,9 @@ import {
   deserializeVector,
   type EmbeddingVector,
 } from "../../memory/utils/embeddings";
+import { validateScope, MAX_SCOPE_LENGTH, MAX_CONTENT_LENGTH } from "../../memory/utils/limits";
+
+const MAX_QUERY_LENGTH = 1000;
 
 const EMBEDDING_DIMENSIONS = 256;
 
@@ -119,6 +122,13 @@ export const memory_semantic_search = tool({
     } = args;
 
     try {
+      if (!query || query.length > MAX_QUERY_LENGTH) {
+        return `Invalid query: must be 1-${MAX_QUERY_LENGTH} characters`;
+      }
+
+      if (scope && !validateScope(scope)) {
+        return `Invalid scope: must be ${MAX_SCOPE_LENGTH} chars or less and cannot contain path separators`;
+      }
       const dbPath = getMemoryDbPath();
       const storage = getStorage(dbPath);
       const db = (storage as unknown as { db: unknown }).db;

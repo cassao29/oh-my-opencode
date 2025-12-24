@@ -14,6 +14,7 @@ export { memory_context_analytics } from "./context-analytics";
 export { memory_semantic_search } from "./semantic-search";
 export { memory_graph_visualize } from "./graph-visualize";
 export { memory_compress } from "./compress";
+export { memory_share } from "./share";
 
 export const memoryTools = {
   memory_remember: () => import("./remember").then(m => m.memory_remember),
@@ -32,4 +33,5 @@ export const memoryTools = {
   memory_semantic_search: () => import("./semantic-search").then(m => m.memory_semantic_search),
   memory_graph_visualize: () => import("./graph-visualize").then(m => m.memory_graph_visualize),
   memory_compress: () => import("./compress").then(m => m.memory_compress),
+  memory_share: () => import("./share").then(m => m.memory_share),
 };

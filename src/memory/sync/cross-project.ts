@@ -7,6 +7,11 @@ import type { Memory, MemoryType } from "../storage/sqlite";
 import { getStorage } from "../storage/sqlite";
 import { getMemoryDbPath, getProjectName } from "../utils/project";
 import { redactSecrets } from "../utils/privacy";
+import { MAX_CONTENT_LENGTH, MAX_SCOPE_LENGTH } from "../utils/limits";
+
+const MAX_PROJECT_NAME_LENGTH = 255;
+const MAX_SHARE_LIMIT = 500;
+const VALID_UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 const GLOBAL_MEMORY_SCHEMA = `
 CREATE TABLE IF NOT EXISTS shared_memories (
@@ -74,6 +79,42 @@ export interface ImportResult {
   errors: string[];
 }
 
+function sanitizeProjectName(name: string): string {
+  return name
+    .replace(/\.\./g, "")
+    .replace(/[<>:"/\\|?*\x00-\x1f]/g, "_")
+    .replace(/_+/g, "_")
+    .replace(/^_|_$/g, "")
+    .slice(0, MAX_PROJECT_NAME_LENGTH) || "unknown-project";
+}
+
+function validateMemoryId(id: string): boolean {
+  return typeof id === "string" && VALID_UUID_REGEX.test(id);
+}
+
+function validateShareScope(scope: unknown): scope is ShareScope {
+  return typeof scope === "string" && 
+    ["global", "organization", "team", "personal"].includes(scope);
+}
+
+function sanitizeContent(content: string): string {
+  if (content.length > MAX_CONTENT_LENGTH) {
+    return content.slice(0, MAX_CONTENT_LENGTH);
+  }
+  return content
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "[REDACTED]")
+    .replace(/javascript:/gi, "")
+    .replace(/on\w+\s*=/gi, "");
+}
+
+function validateScope(scope: string): boolean {
+  return typeof scope === "string" && 
+    scope.length <= MAX_SCOPE_LENGTH &&
+    !scope.includes("..") &&
+    !scope.includes("/") &&
+    !scope.includes("\\");
+}
+
 function getGlobalMemoryDbPath(): string {
   const globalDir = join(homedir(), ".opencode", "global-memory");
   
@@ -101,9 +142,20 @@ class GlobalMemoryStorage {
   
   share(memory: Memory, sourceProject: string, config: ShareConfig): string {
     const id = randomUUID();
-    const content = config.redactSecrets 
+    const sanitizedProject = sanitizeProjectName(sourceProject);
+    
+    if (!validateScope(memory.scope)) {
+      throw new Error("Invalid memory scope");
+    }
+    
+    if (!validateShareScope(config.shareScope)) {
+      throw new Error("Invalid share scope");
+    }
+    
+    let content = config.redactSecrets 
       ? redactSecrets(memory.content) 
       : memory.content;
+    content = sanitizeContent(content);
     
     const stmt = this.db.prepare(`
       INSERT INTO shared_memories (id, original_id, source_project, type, scope, content, tags, share_scope, shared_by)
@@ -113,7 +165,7 @@ class GlobalMemoryStorage {
     stmt.run(
       id,
       memory.id,
-      sourceProject,
+      sanitizedProject,
       memory.type,
       memory.scope,
       content,
@@ -136,10 +188,11 @@ class GlobalMemoryStorage {
     const params: (string | number)[] = [];
     
     if (options.sourceProject) {
+      const sanitizedProject = sanitizeProjectName(options.sourceProject);
       conditions.push("source_project = ?");
-      params.push(options.sourceProject);
+      params.push(sanitizedProject);
     }
-    if (options.shareScope) {
+    if (options.shareScope && validateShareScope(options.shareScope)) {
       conditions.push("share_scope = ?");
       params.push(options.shareScope);
     }
@@ -147,7 +200,7 @@ class GlobalMemoryStorage {
       conditions.push("type = ?");
       params.push(options.type);
     }
-    if (options.scope) {
+    if (options.scope && validateScope(options.scope)) {
       conditions.push("scope = ?");
       params.push(options.scope);
     }
@@ -156,6 +209,8 @@ class GlobalMemoryStorage {
       ? `WHERE ${conditions.join(" AND ")}` 
       : "";
     
+    const limit = Math.min(options.limit ?? 100, MAX_SHARE_LIMIT);
+    
     const sql = `
       SELECT * FROM shared_memories
       ${whereClause}
@@ -163,12 +218,15 @@ class GlobalMemoryStorage {
       LIMIT ?
     `;
     
-    params.push(options.limit ?? 100);
+    params.push(limit);
     
     return this.db.prepare(sql).all(...params) as SharedMemory[];
   }
   
   getSharedById(id: string): SharedMemory | undefined {
+    if (!validateMemoryId(id)) {
+      return undefined;
+    }
     return this.db.prepare(`
       SELECT * FROM shared_memories WHERE id = ?
     `).get(id) as SharedMemory | undefined;
@@ -185,6 +243,9 @@ class GlobalMemoryStorage {
   }
   
   unshare(id: string): boolean {
+    if (!validateMemoryId(id)) {
+      return false;
+    }
     const result = this.db.prepare(`
       DELETE FROM shared_memories WHERE id = ?
     `).run(id);

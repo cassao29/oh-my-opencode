@@ -27,3 +27,4 @@ export type { ToolExecution, PostToolUseOptions } from "./memory";
 
 export { createObservationMaskingHook, type ObservationMaskingOptions } from "./observation-masking";
 export { createContextPoisoningDetectorHook, type ContextPoisoningOptions } from "./context-poisoning-detector";
+export { createPreemptiveSyncHook, getSyncState, type PreemptiveSyncConfig, type SyncState } from "./preemptive-sync";

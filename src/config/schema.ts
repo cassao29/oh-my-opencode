@@ -68,6 +68,7 @@ export const HookNameSchema = z.enum([
   "memory-session-tracking",
   "observation-masking",
   "context-poisoning-detector",
+  "preemptive-sync",
 ])
 
 export const AgentOverrideConfigSchema = z.object({
@@ -119,6 +120,8 @@ export const ExperimentalConfigSchema = z.object({
   truncate_all_tool_outputs: z.boolean().optional(),
   observation_masking: z.boolean().optional(),
   context_poisoning_detection: z.boolean().optional(),
+  preemptive_sync: z.boolean().optional(),
+  preemptive_sync_threshold: z.number().min(10).max(200).optional(),
 })
 
 export const MemoryAutoCaptureSchema = z.object({

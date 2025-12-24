@@ -66,6 +66,8 @@ export const HookNameSchema = z.enum([
   "memory-context-injection",
   "memory-auto-capture",
   "memory-session-tracking",
+  "observation-masking",
+  "context-poisoning-detector",
 ])
 
 export const AgentOverrideConfigSchema = z.object({
@@ -115,6 +117,8 @@ export const ExperimentalConfigSchema = z.object({
   preemptive_compaction: z.boolean().optional(),
   preemptive_compaction_threshold: z.number().min(0.5).max(0.95).optional(),
   truncate_all_tool_outputs: z.boolean().optional(),
+  observation_masking: z.boolean().optional(),
+  context_poisoning_detection: z.boolean().optional(),
 })
 
 export const MemoryAutoCaptureSchema = z.object({

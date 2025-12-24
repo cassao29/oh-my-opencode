@@ -1,6 +1,7 @@
 import { tool } from "@opencode-ai/plugin";
 import { getStorage, type Memory, type MemoryType } from "../../memory/storage/sqlite";
 import { getProjectPath } from "../../memory/utils/project";
+import { rankMemoriesByH2O, selectMemoriesToEvict } from "../../memory/utils/h2o-scoring";
 
 interface CleanupResult {
   memoriesToDelete: Memory[];
@@ -79,13 +80,42 @@ function cleanupSelective(memories: Memory[], maxAgeDays: number, minImportance:
   };
 }
 
+function cleanupByH2O(memories: Memory[], budget: number, currentContext?: string): CleanupResult {
+  const ranked = rankMemoriesByH2O(memories, new Map(), currentContext);
+  const toEvict = selectMemoriesToEvict(memories, budget, new Map(), currentContext);
+
+  const topScores = ranked.slice(0, 5).map(s => 
+    `  - [${s.memory.type}] ${s.memory.scope}: ${(s.totalScore * 100).toFixed(0)}%`
+  ).join('\n');
+
+  const bottomScores = ranked.slice(-5).map(s => 
+    `  - [${s.memory.type}] ${s.memory.scope}: ${(s.totalScore * 100).toFixed(0)}%`
+  ).join('\n');
+
+  return {
+    memoriesToDelete: toEvict,
+    analysis: `H2O (Heavy Hitters Oracle) cleanup:
+- Total memories: ${memories.length}
+- Budget (keep): ${budget}
+- To evict: ${toEvict.length}
+
+Scoring factors: recency (25%), type (20%), access (20%), relevance (20%), connections (15%)
+
+Top scored (keep):
+${topScores}
+
+Lowest scored (evict):
+${bottomScores}`
+  };
+}
+
 export const memory_cleanup = tool({
   description: "Automatically clean up old, low-importance memories to maintain performance and relevance",
   args: {
     strategy: tool.schema
-      .enum(["age", "importance", "redundancy", "selective", "full"])
+      .enum(["age", "importance", "redundancy", "selective", "h2o", "full"])
       .default("selective")
-      .describe("Cleanup strategy: age (old memories), importance (low score), redundancy (duplicates), selective (smart combo), full (interactive)"),
+      .describe("Cleanup strategy: age, importance, redundancy, selective (combo), h2o (Heavy Hitters Oracle - state of the art), full (interactive)"),
     dryRun: tool.schema
       .boolean()
       .default(true)
@@ -110,7 +140,18 @@ export const memory_cleanup = tool({
       .max(1000)
       .optional()
       .default(100)
-      .describe("Maximum items to process/cleanup")
+      .describe("Maximum items to process/cleanup"),
+    budget: tool.schema
+      .number()
+      .min(10)
+      .max(500)
+      .optional()
+      .default(50)
+      .describe("For H2O strategy: how many memories to keep"),
+    context: tool.schema
+      .string()
+      .optional()
+      .describe("Current context for relevance scoring in H2O strategy")
   },
   async execute(args) {
     try {
@@ -142,8 +183,11 @@ export const memory_cleanup = tool({
         case "selective":
           ({ memoriesToDelete, analysis } = cleanupSelective(allMemories, args.maxAge ?? 90, args.minImportance ?? 0.2));
           break;
+        case "h2o":
+          ({ memoriesToDelete, analysis } = cleanupByH2O(allMemories, args.budget ?? 50, args.context));
+          break;
         case "full":
-          return "Full cleanup requires manual review. Use selective cleanup instead.";
+          return "Full cleanup requires manual review. Use selective or h2o cleanup instead.";
       }
 
       if (args.dryRun) {

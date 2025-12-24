@@ -24,3 +24,6 @@ export { createEmptyMessageSanitizerHook } from "./empty-message-sanitizer";
 
 export { createMemoryHooks } from "./memory";
 export type { ToolExecution, PostToolUseOptions } from "./memory";
+
+export { createObservationMaskingHook, type ObservationMaskingOptions } from "./observation-masking";
+export { createContextPoisoningDetectorHook, type ContextPoisoningOptions } from "./context-poisoning-detector";

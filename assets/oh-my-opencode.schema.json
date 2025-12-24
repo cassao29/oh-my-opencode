@@ -62,7 +62,9 @@
           "empty-message-sanitizer",
           "memory-context-injection",
           "memory-auto-capture",
-          "memory-session-tracking"
+          "memory-session-tracking",
+          "observation-masking",
+          "context-poisoning-detector"
         ]
       }
     },
@@ -1230,6 +1232,12 @@
           "maximum": 0.95
         },
         "truncate_all_tool_outputs": {
+          "type": "boolean"
+        },
+        "observation_masking": {
+          "type": "boolean"
+        },
+        "context_poisoning_detection": {
           "type": "boolean"
         }
       }

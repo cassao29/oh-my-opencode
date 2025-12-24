@@ -2,36 +2,47 @@ import type { SummarizeContext } from "../preemptive-compaction"
 import { injectHookMessage } from "../../features/hook-message-injector"
 import { log } from "../../shared/logger"
 
-const SUMMARIZE_CONTEXT_PROMPT = `[COMPACTION CONTEXT INJECTION]
+const SUMMARIZE_CONTEXT_PROMPT = `[COMPACTION CONTEXT INJECTION - LITM-AWARE STRUCTURE]
 
-When summarizing this session, you MUST include the following sections in your summary:
+IMPORTANT: LLMs have reduced accuracy for information in the MIDDLE of context.
+Structure your summary to place CRITICAL information at START and END.
 
-## 1. User Requests (As-Is)
-- List all original user requests exactly as they were stated
-- Preserve the user's exact wording and intent
+## SECTION 1 - START (Highest Attention)
+### Critical Constraints (MUST NOT)
+- Things explicitly forbidden by user
+- Approaches that FAILED - do not retry
+- User's explicit restrictions
+- Security/safety requirements
 
-## 2. Final Goal
-- What the user ultimately wanted to achieve
-- The end result or deliverable expected
+### Current Active Task
+- What you are currently working on
+- Immediate next step required
 
-## 3. Work Completed
-- What has been done so far
+## SECTION 2 - MIDDLE (Background Context)
+### Work Completed
 - Files created/modified
 - Features implemented
 - Problems solved
 
-## 4. Remaining Tasks
-- What still needs to be done
-- Pending items from the original request
-- Follow-up tasks identified during the work
+### Historical Decisions
+- Key decisions made during session
+- Rationale for architectural choices
 
-## 5. MUST NOT Do (Critical Constraints)
-- Things that were explicitly forbidden
-- Approaches that failed and should not be retried
-- User's explicit restrictions or preferences
-- Anti-patterns identified during the session
+## SECTION 3 - END (High Attention)
+### User's Original Intent
+- Original request (verbatim if possible)
+- Ultimate goal/deliverable
 
-This context is critical for maintaining continuity after compaction.
+### Remaining Tasks (In Priority Order)
+1. [Highest priority task]
+2. [Next priority task]
+...
+
+### Critical Reminders
+- Repeat any MUST NOT constraints
+- Key learnings that must not be forgotten
+
+This LITM-aware structure ensures critical information is at context edges.
 `
 
 export function createCompactionContextInjector() {

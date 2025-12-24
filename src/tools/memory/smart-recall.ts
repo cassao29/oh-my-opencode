@@ -1,6 +1,7 @@
 import { tool } from "@opencode-ai/plugin";
 import { getStorage, type Memory } from "../../memory/storage/sqlite";
 import { getProjectPath } from "../../memory/utils/project";
+import { applyLitm } from "../../memory/utils/litm";
 
 function calculateImportance(memory: Memory, context: string = ""): number {
   let score = 0.5;
@@ -82,7 +83,12 @@ export const memory_smart_recall = tool({
     types: tool.schema
       .array(tool.schema.enum(["decision", "learning", "preference", "blocker", "context", "pattern"]))
       .optional()
-      .describe("Filter by memory types")
+      .describe("Filter by memory types"),
+    litmReorder: tool.schema
+      .boolean()
+      .optional()
+      .default(true)
+      .describe("Apply LITM reordering to place important memories at context edges (default: true)")
   },
   async execute(args) {
     try {
@@ -111,9 +117,13 @@ export const memory_smart_recall = tool({
         return `No memories found with importance score >= ${args.minImportance}. Try lowering the threshold.`;
       }
 
-      const finalMemories: ConsolidatedMemory[] = args.consolidate
+      const consolidatedMemories: ConsolidatedMemory[] = args.consolidate
         ? consolidateMemories(scoredMemories)
         : scoredMemories;
+
+      const finalMemories: ConsolidatedMemory[] = args.litmReorder !== false
+        ? applyLitm(consolidatedMemories)
+        : consolidatedMemories;
 
       const formatted = finalMemories.map((m, i) => {
         const tags = m.tags ? ` [${m.tags}]` : "";
@@ -126,8 +136,9 @@ export const memory_smart_recall = tool({
 
       const contextNote = args.context ? `\nContext: "${args.context}"` : "";
       const consolidationNote = args.consolidate ? "\n(Memories consolidated by type and scope)" : "";
+      const litmNote = args.litmReorder !== false ? "\n(LITM-reordered for optimal context placement)" : "";
 
-      return `Smart Recall Results (${finalMemories.length} memories)${contextNote}${consolidationNote}:\n\n${formatted.join("\n\n")}`;
+      return `Smart Recall Results (${finalMemories.length} memories)${contextNote}${consolidationNote}${litmNote}:\n\n${formatted.join("\n\n")}`;
 
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Unknown error";

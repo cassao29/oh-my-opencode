@@ -149,8 +149,17 @@ const IMPORTANT_KEYWORDS = [
   "implemented", "created", "updated", "changed", "added", "removed",
 ];
 
+function sanitizeForSummary(text: string): string {
+  return text
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "[SCRIPT]")
+    .replace(/<[^>]*>/g, "")
+    .replace(/javascript:/gi, "")
+    .replace(/on\w+\s*=/gi, "");
+}
+
 function extractKeyPoints(content: string): string[] {
-  const lines = content.split(/[.\n]/).map(l => l.trim()).filter(l => l.length > 10);
+  const sanitized = sanitizeForSummary(content);
+  const lines = sanitized.split(/[.\n]/).map(l => l.trim()).filter(l => l.length > 10);
 
   const scored = lines.map(line => ({
     line,

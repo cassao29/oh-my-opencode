@@ -6,3 +6,4 @@ export * from "./logging";
 export * from "./tokens";
 export * from "./litm";
 export * from "./h2o-scoring";
+export * from "./embeddings";

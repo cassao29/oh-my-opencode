@@ -13,6 +13,7 @@ export { memory_prune_advice } from "./prune-advice";
 export { memory_context_analytics } from "./context-analytics";
 export { memory_semantic_search } from "./semantic-search";
 export { memory_graph_visualize } from "./graph-visualize";
+export { memory_compress } from "./compress";
 
 export const memoryTools = {
   memory_remember: () => import("./remember").then(m => m.memory_remember),
@@ -30,4 +31,5 @@ export const memoryTools = {
   memory_context_analytics: () => import("./context-analytics").then(m => m.memory_context_analytics),
   memory_semantic_search: () => import("./semantic-search").then(m => m.memory_semantic_search),
   memory_graph_visualize: () => import("./graph-visualize").then(m => m.memory_graph_visualize),
+  memory_compress: () => import("./compress").then(m => m.memory_compress),
 };

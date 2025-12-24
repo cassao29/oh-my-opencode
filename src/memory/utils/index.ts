@@ -7,3 +7,4 @@ export * from "./tokens";
 export * from "./litm";
 export * from "./h2o-scoring";
 export * from "./embeddings";
+export * from "./compression";

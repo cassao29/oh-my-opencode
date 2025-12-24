@@ -88,7 +88,7 @@ function calculateContextMetrics(memories: Memory[]): ContextMetrics {
   return {
     totalMemories: stats.memories,
     totalObservations: stats.observations,
-    estimatedTokens: estimateTokens(totalContentLength.toString()) + Math.ceil(totalContentLength / AVG_CHARS_PER_TOKEN),
+    estimatedTokens: Math.ceil(totalContentLength / AVG_CHARS_PER_TOKEN),
     hotCacheStats: {
       memories: hotCacheStats.memoriesCount,
       observations: hotCacheStats.observationsCount,

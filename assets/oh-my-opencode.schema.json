@@ -64,7 +64,8 @@
           "memory-auto-capture",
           "memory-session-tracking",
           "observation-masking",
-          "context-poisoning-detector"
+          "context-poisoning-detector",
+          "preemptive-sync"
         ]
       }
     },
@@ -1239,6 +1240,14 @@
         },
         "context_poisoning_detection": {
           "type": "boolean"
+        },
+        "preemptive_sync": {
+          "type": "boolean"
+        },
+        "preemptive_sync_threshold": {
+          "type": "number",
+          "minimum": 10,
+          "maximum": 200
         }
       }
     },

@@ -56,7 +56,6 @@ export class HotCache {
   }
 
   getHotMemories(): Memory[] {
-    const now = Date.now();
     const validMemories: Memory[] = [];
 
     for (const [id, item] of this.memories) {
